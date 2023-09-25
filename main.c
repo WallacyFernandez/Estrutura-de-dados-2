@@ -1,146 +1,116 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-#include <locale.h>
+#define SIZE 32
 
-#define TABLE_SIZE 32
-
-struct Contact {
-    char name[100];
+typedef struct DataItem {
+    char nome[50];
     char email[100];
-    char phone[20];
-    bool occupied;
-};
+    char telefone[15];
+    int chave;
+} DataItem;
 
-struct HashTable {
-    struct Contact* table[TABLE_SIZE];
-};
+DataItem *hashTable[SIZE];
 
-int hash(char* key) {
-    unsigned long hash = 0;
-    int a = 31;
-    int len = strlen(key);
-
-    for (int i = 0; i < len; i++) {
-        hash = (hash * a + key[i]) % TABLE_SIZE;
-    }
-
-    return (int)hash;
+int multiplicacao(DataItem *d) {
+    long long int key = (long long int)d->chave;
+    key = key * 2654435761LL;
+    return (int)(key % SIZE);
 }
 
-int hash_secondary(char* key) {
-    int hash = 0;
-    int len = strlen(key);
-
-    for (int i = 0; i < len; i++) {
-        hash += key[i];
-    }
-
-    return (hash % (TABLE_SIZE - 1)) + 1;
-}
-
-struct HashTable* createHashTable() {
-    struct HashTable* ht = (struct HashTable*)malloc(sizeof(struct HashTable));
-    for (int i = 0; i < TABLE_SIZE; i++) {
-        ht->table[i] = NULL;
-    }
-    return ht;
-}
-
-void insert(struct HashTable* ht, char* name, char* email, char* phone) {
-    int index = hash(phone);
-    int step = hash_secondary(phone);
-
-    while (ht->table[index] != NULL && strcmp(ht->table[index]->phone, phone) != 0) {
-        index = (index + step) % TABLE_SIZE;
-    }
-
-    if (ht->table[index] == NULL) {
-        ht->table[index] = (struct Contact*)malloc(sizeof(struct Contact));
-        strcpy(ht->table[index]->name, name);
-        strcpy(ht->table[index]->email, email);
-        strcpy(ht->table[index]->phone, phone);
-        ht->table[index]->occupied = true;
-    } else {
-        strcpy(ht->table[index]->name, name);
-        strcpy(ht->table[index]->email, email);
+void initHashTable() {
+    for (int i = 0; i < SIZE; i++) {
+        hashTable[i] = NULL;
     }
 }
 
-struct Contact* search(struct HashTable* ht, char* phone) {
-    int index = hash(phone);
-    int step = hash_secondary(phone);
+void insert(DataItem *item) {
+    int chave = item->chave;
+    int hashIndex = multiplicacao(item);
+    int stepSize = 7 - (chave % 7);
 
-    while (ht->table[index] != NULL) {
-        if (strcmp(ht->table[index]->phone, phone) == 0) {
-            return ht->table[index];
-        }
-        index = (index + step) % TABLE_SIZE;
+    while (hashTable[hashIndex] != NULL) {
+        hashIndex += stepSize;
+        hashIndex %= SIZE;
     }
 
-    return NULL;
+    hashTable[hashIndex] = item;
 }
 
-void listContacts(struct HashTable* ht) {
-    for (int i = 0; i < TABLE_SIZE; i++) {
-        if (ht->table[i] != NULL && ht->table[i]->occupied) {
-            printf("Nome: %s\n", ht->table[i]->name);
-            printf("Email: %s\n", ht->table[i]->email);
-            printf("Telefone: %s\n", ht->table[i]->phone);
+void listContacts() {
+    printf("\nLista de Contatos:\n");
+    for (int i = 0; i < SIZE; i++) {
+        if (hashTable[i] != NULL) {
+            printf("Chave: %d\n", hashTable[i]->chave);
+            printf("Nome: %s\n", hashTable[i]->nome);
+            printf("Email: %s\n", hashTable[i]->email);
+            printf("Telefone: %s\n\n", hashTable[i]->telefone);
         }
     }
 }
 
-void deleteContact(struct HashTable* ht, char* phone) {
-    int index = hash(phone);
-    int step = hash_secondary(phone);
-
-    while (ht->table[index] != NULL) {
-        if (strcmp(ht->table[index]->phone, phone) == 0) {
-            ht->table[index]->occupied = false;
-            free(ht->table[index]);
+void editContact(int chave) {
+    for (int i = 0; i < SIZE; i++) {
+        if (hashTable[i] != NULL && hashTable[i]->chave == chave) {
+            printf("Novo nome: ");
+            scanf("%s", hashTable[i]->nome);
+            printf("Novo email: ");
+            scanf("%s", hashTable[i]->email);
+            printf("Novo telefone: ");
+            scanf("%s", hashTable[i]->telefone);
+            printf("Contato editado com sucesso!\n");
             return;
         }
-        index = (index + step) % TABLE_SIZE;
     }
+    printf("Contato nao encontrado.\n");
 }
 
-void viewCollisions(struct HashTable* ht) {
-    for (int i = 0; i < TABLE_SIZE; i++) {
-        if (ht->table[i] != NULL && !ht->table[i]->occupied) {
-            printf("Colisão no índice %d\n", i);
+void deleteContact(int chave) {
+    for (int i = 0; i < SIZE; i++) {
+        if (hashTable[i] != NULL && hashTable[i]->chave == chave) {
+            free(hashTable[i]);
+            hashTable[i] = NULL;
+            printf("Contato excluido com sucesso!\n");
+            return;
+        }
+    }
+    printf("Contato nao encontrado.\n");
+}
+
+void viewCollisions() {
+    printf("\nColisoes de Entrada:\n");
+    for (int i = 0; i < SIZE; i++) {
+        if (hashTable[i] != NULL) {
+            int hashIndex = multiplicacao(hashTable[i]);
+            if (hashIndex != i) {
+                printf("Chave: %d, Colidiu com chave na posicao: %d\n", hashTable[i]->chave, hashIndex);
+            }
         }
     }
 }
 
-void createContactFile(struct HashTable* ht) {
-    FILE* file = fopen("contatos.txt", "w");
+void createContactFile() {
+    FILE *file = fopen("contatos.txt", "w");
     if (file == NULL) {
-        printf("Erro ao criar o arquivo.\n");
+        printf("Erro ao criar o arquivo de contatos.\n");
         return;
     }
 
-    for (int i = 0; i < TABLE_SIZE; i++) {
-        if (ht->table[i] != NULL && ht->table[i]->occupied) {
-            fprintf(file, "Nome: %s\n", ht->table[i]->name);
-            fprintf(file, "Email: %s\n", ht->table[i]->email);
-            fprintf(file, "Telefone: %s\n", ht->table[i]->phone);
+    for (int i = 0; i < SIZE; i++) {
+        if (hashTable[i] != NULL) {
+            fprintf(file, "Chave: %d\n", hashTable[i]->chave);
+            fprintf(file, "Nome: %s\n", hashTable[i]->nome);
+            fprintf(file, "Email: %s\n", hashTable[i]->email);
+            fprintf(file, "Telefone: %s\n\n", hashTable[i]->telefone);
         }
     }
 
     fclose(file);
-    printf("Arquivo contatos.txt criado com sucesso!\n");
+    printf("Arquivo de contatos criado com sucesso.\n");
 }
 
 int main() {
-
-    setlocale(LC_ALL, "pt_BR.UTF-8");
-    struct HashTable* ht = createHashTable();
+    initHashTable();
     int choice;
-    char name[100], email[100], phone[20];
 
-    while (1) {
+    do {
         printf("\nMenu:\n");
         printf("1. Adicionar novo contato\n");
         printf("2. Listar todos os contatos\n");
@@ -154,65 +124,52 @@ int main() {
 
         switch (choice) {
             case 1:
-                printf("Nome: ");
-                scanf("%s", name);
-                printf("Email: ");
-                scanf("%s", email);
-                printf("Telefone: ");
-                scanf("%s", phone);
-                insert(ht, name, email, phone);
-                printf("Contato adicionado com sucesso!\n");
-                break;
-
-            case 2:
-                listContacts(ht);
-                break;
-
-            case 3:
-                printf("Telefone do contato que deseja editar: ");
-                scanf("%s", phone);
-                struct Contact* editContact = search(ht, phone);
-                if (editContact != NULL) {
+                {
+                    DataItem *newItem = (DataItem *)malloc(sizeof(DataItem));
+                    printf("Chave: ");
+                    scanf("%d", &newItem->chave);
                     printf("Nome: ");
-                    scanf("%s", name);
+                    scanf("%s", newItem->nome);
                     printf("Email: ");
-                    scanf("%s", email);
-                    strcpy(editContact->name, name);
-                    strcpy(editContact->email, email);
-                    printf("Contato editado com sucesso!\n");
-                } else {
-                    printf("Contato não encontrado.\n");
+                    scanf("%s", newItem->email);
+                    printf("Telefone: ");
+                    scanf("%s", newItem->telefone);
+                    insert(newItem);
                 }
                 break;
-
+            case 2:
+                listContacts();
+                break;
+            case 3:
+                {
+                    int chave;
+                    printf("Digite a chave do contato que deseja editar: ");
+                    scanf("%d", &chave);
+                    editContact(chave);
+                }
+                break;
             case 4:
-                printf("Telefone do contato que deseja excluir: ");
-                scanf("%s", phone);
-                deleteContact(ht, phone);
-                printf("Contato excluído com sucesso!\n");
-                break;
-
-            case 5:
-                viewCollisions(ht);
-                break;
-
-            case 6:
-                createContactFile(ht);
-                break;
-
-            case 7:
-                for (int i = 0; i < TABLE_SIZE; i++) {
-                    if (ht->table[i] != NULL) {
-                        free(ht->table[i]);
-                    }
+                {
+                    int chave;
+                    printf("Digite a chave do contato que deseja excluir: ");
+                    scanf("%d", &chave);
+                    deleteContact(chave);
                 }
-                free(ht);
-                return 0;
-
+                break;
+            case 5:
+                viewCollisions();
+                break;
+            case 6:
+                createContactFile();
+                break;
+            case 7:
+                printf("Saindo do programa...\n");
+                break;
             default:
-                printf("Opção inválida!\n");
+                printf("Opcao invalida. Tente novamente.\n");
+                break;
         }
-    }
+    } while (choice != 7);
 
     return 0;
 }

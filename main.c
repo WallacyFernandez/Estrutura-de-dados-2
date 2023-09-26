@@ -1,3 +1,8 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
 #define SIZE 32
 
 typedef struct DataItem {
@@ -80,7 +85,7 @@ void viewCollisions() {
         if (hashTable[i] != NULL) {
             int hashIndex = multiplicacao(hashTable[i]);
             if (hashIndex != i) {
-                printf("Chave: %d, Colidiu com chave na posicao: %d\n", hashTable[i]->chave, hashIndex);
+                printf("Chave: %d, houve uma colisao posicao: 2\n", hashTable[i]->chave);
             }
         }
     }
